@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <RuntimeFrameworkVersion>1.1.1</RuntimeFrameworkVersion>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Utilities.fs" />
+    <Compile Include="Models.fs" />
+    <Compile Include="Api.fs" />
+    <Compile Include="KestrelInterop.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Aether" Version="8.2.0" />
+    <PackageReference Include="Chessie" Version="0.6.0" />
+    <PackageReference Include="Chiron" Version="7.0.0-*" />
+    <PackageReference Include="Freya" Version="4.0.0-alpha-*" />
+    <PackageReference Include="Freya.Polyfills.Kestrel" Version="4.0.0-*" />
+    <PackageReference Include="Geo" Version="0.14.1" />
+    <PackageReference Include="Marten.FSharp" Version="0.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="1.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Owin" Version="1.*" />
+    <PackageReference Include="NodaTime" Version="2.2.0" />
+  </ItemGroup>
+</Project>
