@@ -3,6 +3,7 @@ namespace Solat
 open System
 
 open Aether
+open Chessie.ErrorHandling
 open NodaTime
 
 module Models =
@@ -15,6 +16,7 @@ module Models =
     | Ashar
     | Maghrib
     | Isha
+    | Sunnah
     override __.ToString () =
       match __ with
       | Subuh   -> "Subuh"
@@ -22,28 +24,28 @@ module Models =
       | Ashar   -> "Ashar"
       | Maghrib -> "Maghrib"
       | Isha    -> "Isha"
-
-  type Lokasi =
-    { Id      : Guid
-      Lintang : double
-      Bujur   : double }
-    static member Buat i l b =
-      { Id      = i
-        Lintang = l
-        Bujur   = b}
-    static member Hampa = Lokasi.Buat Guid.Empty 0. 0.
-    static member L =
-      (fun lo -> lo.Lintang),
-      (fun l lo -> { lo with Lintang = l })
-    static member B =
-      (fun lo -> lo.Bujur),
-      (fun b lo -> { lo with Bujur = b })
+      | Sunnah  -> "Sunnah"
+    static member FromString =
+      function
+      | "Subuh"   -> Subuh
+      | "Dzuhur"  -> Dzuhur
+      | "Ashar"   -> Ashar
+      | "Maghrib" -> Maghrib
+      | "Isha"    -> Isha
+      | _         -> Sunnah
 
   type User =
     { Id       : Guid
       Username : string
       Password : string
       Email    : string }
+    static member Buat i u p e =
+      { Id       = i
+        Username = u
+        Password = p
+        Email    = e }
+    static member Daftar u p e =
+      User.Buat (Guid.NewGuid()) u p e
 
   type Masjid =
     { Id       : Guid
@@ -82,7 +84,7 @@ module Models =
 
   type Jamaah =
     { Id       : Guid
-      Masjid   : Guid // Masjid.Id
+      MasjidId : Guid // Masjid.Id
       Solat    : TipeSolat
       Waktu    : int64
       // UTC, unix epoch
@@ -91,12 +93,15 @@ module Models =
       Diupdate : int64 }
     static member Buat i m s w b u =
       { Id       = i
-        Masjid   = m
+        MasjidId = m
         Solat    = s
         Waktu    = w
         Dibuat   = b
         Diupdate = u }
-    static member Hampa = Jamaah.Buat Guid.Empty Guid.Empty Ashar 0L 0L 0L
+    static member DariUser m s w =
+      Jamaah.Buat (Guid.NewGuid ()) m s w (now ()) (now ())
+    static member Hampa =
+      Jamaah.Buat Guid.Empty Guid.Empty Ashar 0L 0L 0L
     static member S =
       (fun j -> j.Solat),
       (fun s j -> { j with Solat = s })
@@ -110,22 +115,6 @@ module Models =
       (fun m -> m.Diupdate),
       (fun u (m : Masjid) -> { m with Diupdate = u })
 
-  type UntukUser =
-    { Nama      : string
-      Lintang   : double
-      Bujur     : double
-      Alamat    : string
-      TipeSolat : string
-      // LocalTime, YY:MM:DD:HH:mm
-      Waktu     : string }
-    static member Buat n l b a t w =
-      { Nama      = n
-        Lintang   = l
-        Bujur     = b
-        Alamat    = a
-        TipeSolat = t
-        Waktu     = w }
-
 [<RequireQualifiedAccessAttribute>]
 module EncodingDecoding =
 
@@ -137,6 +126,16 @@ module EncodingDecoding =
   [<RequireQualifiedAccessAttribute>]
   module Decode =
 
+    let tipeSolat =
+      TipeSolat.FromString
+      <!> Json.Decode.required Json.Decode.string "tipesolat"
+
+    let user =
+      User.Daftar
+      <!> Json.Decode.required Json.Decode.string "username"
+      <*> Json.Decode.required Json.Decode.string "password"
+      <*> Json.Decode.required Json.Decode.string "email"
+
     let masjid =
       Masjid.BuatData
       <!> Json.Decode.required Json.Decode.string "nama"
@@ -144,14 +143,31 @@ module EncodingDecoding =
       <*> Json.Decode.required Json.Decode.float  "bujur"
       <*> Json.Decode.required Json.Decode.string "alamat"
 
+    let jamaah =
+      Jamaah.DariUser
+      <!> Json.Decode.required Json.Decode.guid "masjidid"
+      <*> Json.Decode.required (Json.Decode.jsonObjectWith tipeSolat) "tipesolat"
+      <*> Json.Decode.required Json.Decode.int64 "waktulokal"
+
   [<RequireQualifiedAccessAttribute>]
   module Encode =
-    let masjid (m : Masjid) jobj =
-      jobj
-      |> Json.Encode.required Json.Encode.guid   "id"       m.Id
-      |> Json.Encode.required Json.Encode.string "nama"     m.Nama
-      |> Json.Encode.required Json.Encode.string "alamat"   m.Alamat
-      |> Json.Encode.required Json.Encode.float  "lintang"  m.Lintang
-      |> Json.Encode.required Json.Encode.float  "bujur"    m.Bujur
-      |> Json.Encode.required Json.Encode.int64  "dibuat"   m.Dibuat
-      |> Json.Encode.required Json.Encode.int64  "diupdate" m.Diupdate
+
+    let tipeSolat (t : TipeSolat) =
+      Json.Encode.required Json.Encode.string "tipesolat" (t.ToString())
+
+    let masjid (m : Masjid) =
+         Json.Encode.required Json.Encode.guid   "id"       m.Id
+      >> Json.Encode.required Json.Encode.string "nama"     m.Nama
+      >> Json.Encode.required Json.Encode.string "alamat"   m.Alamat
+      >> Json.Encode.required Json.Encode.float  "lintang"  m.Lintang
+      >> Json.Encode.required Json.Encode.float  "bujur"    m.Bujur
+      >> Json.Encode.required Json.Encode.int64  "dibuat"   m.Dibuat
+      >> Json.Encode.required Json.Encode.int64  "diupdate" m.Diupdate
+
+    let jamaah (j : Jamaah) =
+         Json.Encode.required Json.Encode.guid  "id"       j.Id
+      >> Json.Encode.required Json.Encode.guid  "masjidid" j.MasjidId
+      >> Json.Encode.required (Json.Encode.jsonObjectWith tipeSolat) "solat" j.Solat
+      >> Json.Encode.required Json.Encode.int64 "waktu"    j.Waktu
+      >> Json.Encode.required Json.Encode.int64 "dibuat"   j.Dibuat
+      >> Json.Encode.required Json.Encode.int64 "diupdate" j.Diupdate
