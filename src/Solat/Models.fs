@@ -115,6 +115,30 @@ module Models =
       (fun m -> m.Diupdate),
       (fun u (m : Masjid) -> { m with Diupdate = u })
 
+  type PengaturanServer =
+    { IdKlien                : string
+      GoogleMapsKey          : string
+      JarakMinMasjidNamaSama : float
+      JarakMinMasjidNamaBeda : float }
+    static member Buat i k s b =
+      { IdKlien                = i
+        GoogleMapsKey          = k
+        JarakMinMasjidNamaSama = s
+        JarakMinMasjidNamaBeda = b }
+    static member Hampa = PengaturanServer.Buat "" "" 0. 0.
+    static member I =
+      (fun s -> s.IdKlien),
+      (fun i s -> { s with IdKlien = i })
+    static member K =
+      (fun s -> s.GoogleMapsKey),
+      (fun k s -> { s with GoogleMapsKey = k })
+    static member S =
+      (fun s -> s.JarakMinMasjidNamaSama),
+      (fun m s -> { s with JarakMinMasjidNamaSama = m })
+    static member B =
+      (fun s -> s.JarakMinMasjidNamaBeda),
+      (fun b s -> { s with JarakMinMasjidNamaBeda = b })
+
 [<RequireQualifiedAccessAttribute>]
 module EncodingDecoding =
 
@@ -148,6 +172,13 @@ module EncodingDecoding =
       <!> Json.Decode.required Json.Decode.guid "masjidid"
       <*> Json.Decode.required (Json.Decode.jsonObjectWith tipeSolat) "tipesolat"
       <*> Json.Decode.required Json.Decode.int64 "waktulokal"
+
+    let pengaturanServer =
+      PengaturanServer.Buat
+      <!> Json.Decode.required Json.Decode.string "idklien"
+      <*> Json.Decode.required Json.Decode.string "googlemapskey"
+      <*> Json.Decode.required Json.Decode.float  "jarakminmasjidnamasama"
+      <*> Json.Decode.required Json.Decode.float  "jarakminmasjidnamabeda"
 
   [<RequireQualifiedAccessAttribute>]
   module Encode =
